@@ -3,26 +3,29 @@ import json
 import os
 import time
 
-import builds
+from jenkins_perf_visualizer import builds
 
 
-def create_html(job_datas):
+def create_html(build_datas):
     """Return an html page that will render our flame-like chart.
 
     We use custom CSS to do this.
     """
-    deploy_start_time_ms = min(j.data['jobStartTimeMs'] for j in job_datas)
-    deploy_end_time_ms = max(j.data['jobEndTimeMs'] for j in job_datas)
+    # A "task" is a collection of related jenkins builds.  The idea
+    # is that a single task, such as deploying your app, may involve
+    # several jenkins builds run in concert.
+    task_start_time_ms = min(j.data['buildStartTimeMs'] for j in build_datas)
+    task_end_time_ms = max(j.data['buildEndTimeMs'] for j in build_datas)
     title = ('%s (%s)'
-             % (' + '.join(sorted(set(j.data['title'] for j in job_datas))),
+             % (' + '.join(sorted(set(j.data['title'] for j in build_datas))),
                 time.strftime("%Y/%m/%d %H:%M:%S",
-                              time.localtime(deploy_start_time_ms / 1000))))
-    deploy_data = {
-        'jobs': [j.data for j in job_datas],
+                              time.localtime(task_start_time_ms / 1000))))
+    task_data = {
+        'builds': [j.data for j in build_datas],
         'title': title,
         'colors': builds.COLORS,
-        'deployStartTimeMs': deploy_start_time_ms,
-        'deployEndTimeMs': deploy_end_time_ms,
+        'taskStartTimeMs': task_start_time_ms,
+        'taskEndTimeMs': task_end_time_ms,
     }
 
     visualizer_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,4 +39,4 @@ def create_html(job_datas):
     return template \
         .replace('{{js}}', js) \
         .replace('{{css}}', css) \
-        .replace('{{data}}', json.dumps(deploy_data, sort_keys=True, indent=2))
+        .replace('{{data}}', json.dumps(task_data, sort_keys=True, indent=2))

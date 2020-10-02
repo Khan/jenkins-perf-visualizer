@@ -48,7 +48,7 @@ class JenkinsFetcher(object):
         assert r.code == 200
         return r.read()
 
-    def fetch_for_job(self, job_name, build_id, url_suffix):
+    def fetch_for_build(self, job_name, build_id, url_suffix):
         """Download jenkins/job_name/build_id/suffix.
 
         job_name is, e.g. 'deploy/build-webapp'
@@ -77,20 +77,21 @@ class JenkinsFetcher(object):
 
         job_name is, e.g. 'deploy/build-webapp'
         """
-        text = self.fetch_for_job(job_name, build_id, 'flowGraphTable')
+        text = self.fetch_for_build(job_name, build_id, 'flowGraphTable')
         return text.decode('utf-8')
 
-    def fetch_job_start_time(self, job_name, build_id, root_step):
-        """We need to know the node-id of the start-step of this job."""
-        s = self.fetch_for_job(job_name, build_id,
-                               'execution/node/%s/wfapi/' % root_step.id)
+    def fetch_build_start_time(self, job_name, build_id, root_step_id):
+        """We need to know the node-id of the start-step of this build."""
+        s = self.fetch_for_build(
+            job_name, build_id, 'execution/node/%s/wfapi/' % root_step_id)
         data = json.loads(s)
         return data["startTimeMillis"] / 1000.0
 
-    def fetch_job_parameters(self, job_name, build_id):
+    def fetch_build_parameters(self, job_name, build_id):
         """Fetch the jenkins parameters that this job was run with."""
-        s = self.fetch_for_job(job_name, build_id,
-                               'api/json?tree=actions[parameters[name,value]]')
+        s = self.fetch_for_build(
+            job_name, build_id,
+            'api/json?tree=actions[parameters[name,value]]')
         data = json.loads(s)
         params = next(
             (a for a in data.get('actions', {})
@@ -101,8 +102,8 @@ class JenkinsFetcher(object):
 
     def fetch_all_build_ids(self, job_name):
         """Fetch all the build-ids jenkins has for a given job."""
-        s = self.fetch_for_job(job_name, None,
-                               'api/json?tree=allBuilds[number]')
+        s = self.fetch_for_build(
+            job_name, None, 'api/json?tree=allBuilds[number]')
         data = json.loads(s)
         return [b['number'] for b in data['allBuilds']]
 

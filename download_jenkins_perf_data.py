@@ -28,7 +28,7 @@ def _download_one_build(param):
     (job, build_id, output_dir, jenkins_client, force) = param
     print("Fetching %s:%s" % (job, build_id))
     try:
-        (_, job_params, job_start_time, outfile) = fetch.fetch_build(
+        (_, build_params, build_start_time, outfile) = fetch.fetch_build(
             job, build_id, output_dir, jenkins_client, force)
     except fetch.DataError as e:
         print("ERROR: skipping %s:%s: %s" % (e.job, e.build_id, e))
@@ -37,8 +37,8 @@ def _download_one_build(param):
     # Now create a symlink organized by date and title.
     # TODO(csilvers): re-enable this via config settings.
     '''
-    yyyy_mm = time.strftime("%Y-%m", time.localtime(job_start_time))
-    title = job_params.get('REVISION_DESCRIPTION', '<unknown job>')
+    yyyy_mm = time.strftime("%Y-%m", time.localtime(build_start_time))
+    title = build_params.get('REVISION_DESCRIPTION', '<unknown build>')
     category_dir = os.path.join(output_dir, '%s.%s' % (yyyy_mm, title))
     symlink = os.path.join(category_dir, os.path.basename(outfile))
     if force and os.path.exists(symlink):
@@ -52,7 +52,7 @@ def _download_one_build(param):
 
 def download_builds(builds, output_dir, jenkins_username, jenkins_password,
                     force=False):
-    """Download and save the data-needed-to-render for biulds and jobs.
+    """Download and save the data-needed-to-render for builds and jobs.
 
     We ask jenkins what builds it knows about for the given jobs,
     then download them all to get a `.data` file that is suitable
@@ -67,7 +67,7 @@ def download_builds(builds, output_dir, jenkins_username, jenkins_password,
         output_dir: the directory to put all the data files
         jenkins_username: a valid jenkins username
         jenkins_password: a valid API token.  If None, fetch from keeper.
-        force: if False, don't fetch any jobs that already have a
+        force: if False, don't fetch any builds that already have a
                data-file in output_dir.  If True, fetch everything.
     """
     # TODO(csilvers): use config options to decide what to do, instead.
@@ -98,11 +98,11 @@ if __name__ == '__main__':
     parser.add_argument('--jenkins-username',
                         default='jenkins@khanacademy.org')
     parser.add_argument('--jenkins-pw',
-                        help=('API token that gives access to job data. '
+                        help=('API token that gives access to build data. '
                               'If not set, fetch the secret from keeper '
                               '(record %s)' % KEEPER_RECORD_ID))
     parser.add_argument('-d', '--output-dir',
-                        default='/tmp/jenkins-job-perf-analysis',
+                        default='/tmp/jenkins-build-perf-analysis',
                         help='Directory to write the output data files')
     parser.add_argument('--force', action='store_true',
                         help=('If set, re-fetch data files even if they '

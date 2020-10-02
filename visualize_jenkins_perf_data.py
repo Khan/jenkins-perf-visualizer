@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
-"""Emit a chart that shows where time is spent during a deploy.
+"""Emit a chart that shows where time is spent during specified jenkins builds.
 
 The output is a chart.  The x axis is seconds since the beginning
-of the input jenkins job until the end.  (If multiple jobs are specified
-it's the beginning of the first job until the end of the last one.)
+of the input jenkins build until the end.  (If multiple builds are specified
+it's the beginning of the first build until the end of the last one.)
 
 The y axis is a set of "nodes".  A node captures the time taken by
 a block of Jenkins pipeline steps:
@@ -13,9 +13,9 @@ a block of Jenkins pipeline steps:
    2) Every branch of a parallel() step begins a new node, labeled
       with the name of that branch, and includes all the commands
       run by that branch.
-   3) "<jenkins job name>" holds the overall jenkins job.
+   3) "<jenkins build name>" holds the overall jenkins build.
 (Note that our helper jenkins functions, like notify() define
-some stages of their own, so every Jenkins job has a "main"
+some stages of their own, so every Jenkins build has a "main"
 node which contains everything inside a "notify" block.)
 
 Each node can be in one of several states:
@@ -48,9 +48,6 @@ This script works in three main stages:
    (The `Node` class.)
 3) It constructs and emits a graph based on the node data.
    (`create_html()`.)
-
-# TODO(csilvers): rename 'timerange' into a better name
-# TODO(csilvers): rename 'job' to 'build' when appropriate
 """
 from __future__ import absolute_import
 
@@ -71,12 +68,12 @@ KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
 
 def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
     """jenkins_* vars are not needed if all builds are .data files."""
-    job_datas = []
+    build_datas = []
     for build in buildses:
         if build.endswith('.data'):  # Used a cached file to avoid the network
             (job, build_id) = os.path.basename(build[:-len('.data')]).replace(
                 '--', '/').split(':')
-            (step_html, job_params, job_start_time) = (
+            (step_html, build_params, build_start_time) = (
                 fetch.fetch_from_datafile(build))
             outfile = build
         else:
@@ -87,18 +84,18 @@ def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
                 jenkins_client = jenkins.get_client_via_keeper(
                     KEEPER_RECORD_ID)
             (job, build_id) = build.split(':')
-            (step_html, job_params, job_start_time, outfile) = (
+            (step_html, build_params, build_start_time, outfile) = (
                 fetch.fetch_build(job, build_id, output_dir, jenkins_client))
 
         step_root = steps.parse_pipeline_steps(step_html)
         node_root = nodes.steps_to_nodes(step_root)
-        job_datas.append(builds.BuildData(
-            job, build_id, job_start_time, job_params, node_root))
+        build_datas.append(builds.BuildData(
+            job, build_id, build_start_time, build_params, node_root))
 
-    job_datas.sort(key=lambda jd: jd.job_start_time_ms)
+    build_datas.sort(key=lambda jd: jd.build_start_time_ms)
 
     html_file = outfile.replace('.data', '.html')
-    output_html = html.create_html(job_datas)
+    output_html = html.create_html(build_datas)
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
     webbrowser.open(html_file)
@@ -114,11 +111,11 @@ if __name__ == '__main__':
     parser.add_argument('--jenkins-username',
                         default='jenkins@khanacademy.org')
     parser.add_argument('--jenkins-pw',
-                        help=('API token that gives access to job data. '
+                        help=('API token that gives access to build data. '
                               'If not set, fetch the secret from keeper '
                               '(record %s)' % KEEPER_RECORD_ID))
     parser.add_argument('-d', '--output-dir',
-                        default='/tmp/jenkins-job-perf-analysis',
+                        default='/tmp/jenkins-build-perf-analysis',
                         help='Directory to write the flamechart output file')
     args = parser.parse_args()
 

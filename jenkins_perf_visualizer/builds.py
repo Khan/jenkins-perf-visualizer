@@ -17,7 +17,7 @@ The public api here is the BuildData class.
 import re
 import time
 
-import nodes
+from jenkins_perf_visualizer import nodes
 
 
 # A map from regexp matching a node-name, to colors to use for our output bars.
@@ -26,7 +26,7 @@ import nodes
 # medium when sleeping, and dark when running.
 # The keys are for names of stages() and parallel() branches, as
 # described in the top-of-file docstrings.
-# If a job has a node-name thats not listed below, it will be colored
+# If a build has a node-name thats not listed below, it will be colored
 # black.  These rgb values come from, e.g.
 #    https://www.rapidtables.com/web/color/red-color.html
 # TODO(csilvers): have this only takes regexp keys, and require they match
@@ -35,7 +35,7 @@ _NODE_COLORS = {
     # Used for steps outside any step() or parallel().
     None: "b22222",  # red
 
-    # All jobs (stages run via notify.groovy and other helper functions)
+    # All builds (stages run via notify.groovy and other helper functions)
     'main': "b22222",  # red
     '_watchdog': "a9a9a9",  # gray
     'Resolving commit': "006400",  # green
@@ -99,49 +99,53 @@ COLORS = ['#000000'] + sorted(set(_COLOR_MAP.values()))
 
 
 class BuildData(object):
-    """All the data needed to graph nodes for a single jenkins job.
+    """All the data needed to graph nodes for a single jenkins build.
 
     The main data is in "nodes", which is a list of time-ranges.
     The time-range values are floating-point time_t's.
     They also have a mode -- RUNNING, etc -- and a color index
     into `colors`, which is a list of elements like "#RRGGBB".
     """
-    def __init__(self, job, build_id, job_start_time, job_params, node_root):
-        self.job_start_time_ms = job_start_time * 1000  # as a time-t
+    def __init__(self, job, build_id,
+                 build_start_time, build_params, node_root):
+        self.build_start_time_ms = build_start_time * 1000  # as a time-t
         pretty_name = '<%s:%s>' % (job, build_id)
 
         _time = lambda ms: (
-            time.localtime((self.job_start_time_ms + ms) / 1000.0))
+            time.localtime((self.build_start_time_ms + ms) / 1000.0))
 
         def node_to_json(node):
             return {
                 'name': node.name or pretty_name,
                 'children': [node_to_json(c) for c in node.children],
                 'intervals': [{
-                    'startTimeMs': t[0] + self.job_start_time_ms,
-                    'endTimeMs': t[1] + self.job_start_time_ms,
-                    'timeRangeRelativeToJobStart': (
+                    'startTimeMs': t.start_ms + self.build_start_time_ms,
+                    'endTimeMs': t.end_ms + self.build_start_time_ms,
+                    'timeRangeRelativeToBuildStart': (
                         "%s - %s (%.2fs)"
-                        % (time.strftime("%Y/%m/%d:%H:%M:%S", _time(t[0])),
-                           time.strftime("%H:%M:%S", _time(t[1])),
-                           (t[1] - t[0]) / 1000.0)),
-                    'mode': t[2],
-                    'colorIndex': self._color_index(node.name, t[2]),
-                } for t in node.timerange
+                        % (time.strftime("%Y/%m/%d:%H:%M:%S",
+                                         _time(t.start_ms)),
+                           time.strftime("%H:%M:%S",
+                                         _time(t.end_ms)),
+                           (t.end_ms - t.start_ms) / 1000.0)),
+                    'mode': t.mode,
+                    'colorIndex': self._color_index(node.name, t.mode),
+                } for t in node.intervals
                 ],
             }
 
         def max_end_time(node):
-            end_time = max([t[1] for t in node.timerange])
+            end_time = max([t.end_ms for t in node.intervals])
             return max([end_time] + [max_end_time(c) for c in node.children])
 
         self.data = {
             'jobName': job,
             'buildId': build_id,
-            'title': job_params.get('REVISION_DESCRIPTION', '<unknown job>'),
-            'parameters': job_params,  # not used; for help in debugging
-            'jobStartTimeMs': self.job_start_time_ms,
-            'jobEndTimeMs': self.job_start_time_ms + max_end_time(node_root),
+            'title': build_params.get('REVISION_DESCRIPTION', '<unknown>'),
+            'parameters': build_params,  # not used; for help in debugging
+            'buildStartTimeMs': self.build_start_time_ms,
+            'buildEndTimeMs': (self.build_start_time_ms +
+                               max_end_time(node_root)),
             'colors': COLORS,
             'nodeRoot': node_to_json(node_root),
         }

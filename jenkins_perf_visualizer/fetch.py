@@ -12,8 +12,8 @@ import json
 import os
 import re
 
-import jenkins
-import steps
+from jenkins_perf_visualizer import jenkins
+from jenkins_perf_visualizer import steps
 
 
 class DataError(Exception):
@@ -41,45 +41,46 @@ def fetch_from_datafile(fname):
         step_html = f.read().decode('utf-8')
     m = re.search(r'<script>var parameters = (.*?)</script>',
                   step_html)
-    job_params = json.loads(m.group(1) if m else '{}')
-    # We get the job-start time by the file's mtime.
-    job_start_time = os.path.getmtime(fname)
-    return (step_html, job_params, job_start_time)
+    build_params = json.loads(m.group(1) if m else '{}')
+    # We get the buid-start time by the file's mtime.
+    build_start_time = os.path.getmtime(fname)
+    return (step_html, build_params, build_start_time)
 
 
 def _fetch_from_jenkins(job, build_id, jenkins_client):
     """Fetch data for the given build from Jenkins."""
     try:
-        job_params = jenkins_client.fetch_job_parameters(job, build_id)
+        build_params = jenkins_client.fetch_build_parameters(job, build_id)
         step_html = jenkins_client.fetch_pipeline_steps(job, build_id)
         step_root = steps.parse_pipeline_steps(step_html)
         if not step_root:
             raise DataError(job, build_id, "invalid job? (no steps found)")
-        job_start_time = jenkins_client.fetch_job_start_time(
+        build_start_time = jenkins_client.fetch_build_start_time(
             job, build_id, step_root.id)
-        return (step_html, job_params, job_start_time)
+        return (step_html, build_params, build_start_time)
     except jenkins.HTTPError as e:
         raise DataError(job, build_id, "HTTP error: %s" % e)
 
 
 def fetch_build(job, build_id, output_dir, jenkins_client, force=False):
-    """Download, save, and return the data-needed-to-render for one job."""
+    """Download, save, and return the data-needed-to-render for one build."""
     mkdir_p(output_dir)
     outfile = os.path.join(
         output_dir, '%s:%s.data' % (job.replace('/', '--'), build_id))
 
     if not force and os.path.exists(outfile):
-        (step_html, job_params, job_start_time) = fetch_from_datafile(outfile)
+        (step_html, build_params, build_start_time) = fetch_from_datafile(
+            outfile)
     else:
-        (step_html, job_params, job_start_time) = _fetch_from_jenkins(
+        (step_html, build_params, build_start_time) = _fetch_from_jenkins(
             job, build_id, jenkins_client)
 
         with open(outfile, 'wb') as f:
             f.write(step_html.encode('utf-8'))
             params_text = ('\n\n<script>var parameters = %s</script>'
-                           % json.dumps(job_params))
+                           % json.dumps(build_params))
             f.write(params_text.encode('utf-8'))
         # Set the last-modified time of this file to its start-time.
-        os.utime(outfile, (job_start_time, job_start_time))
+        os.utime(outfile, (build_start_time, build_start_time))
 
-    return (step_html, job_params, job_start_time, outfile)
+    return (step_html, build_params, build_start_time, outfile)

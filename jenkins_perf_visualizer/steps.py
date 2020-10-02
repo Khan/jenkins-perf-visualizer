@@ -8,7 +8,7 @@ it.  This yields an execution tree of steps.  We take the html of
 a "pipeline steps" jenkins page and return the root of the execution
 tree.
 
-The public API here is parse_pipeline_steps.
+The public API here is parse_pipeline_steps().
 """
 import re
 

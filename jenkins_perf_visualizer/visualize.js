@@ -40,13 +40,13 @@ function getNodeList(builds) {
 // Insert the CSS for the grid marks.  We need to do this dynamically
 // because we want them every 60 seconds, and we need to know he
 // width of the graph (in seconds) to do that.
-function addCssGridMarks(deployTimeMs) {
+function addCssGridMarks(taskTimeMs) {
     var tickIntervalMs = 60 * 1000;
-    var numTicks = deployTimeMs / tickIntervalMs;
+    var numTicks = taskTimeMs / tickIntervalMs;
     // Let's make sure we don't have too many ticks.  20 seems a good maximum.
     while (numTicks > 20) {
        tickIntervalMs += 60 * 1000;
-       var numTicks = deployTimeMs / tickIntervalMs;
+       var numTicks = taskTimeMs / tickIntervalMs;
     }
     var tickGapPct = 100.0 / numTicks;
     document.styleSheets[0].insertRule(`.bar-container {
@@ -83,11 +83,11 @@ function addCssColors(colors) {
 
 // TODO(csilvers): document what's in `data`
 function renderChart(data) {
-    var deployTimeMs = data.deployEndTimeMs - data.deployStartTimeMs;
+    var taskTimeMs = data.taskEndTimeMs - data.taskStartTimeMs;
 
     // Add some CSS we need that must be generated dynamically.
     addCssColors(data.colors);
-    var {numTicks, tickIntervalMs} = addCssGridMarks(deployTimeMs);
+    var {numTicks, tickIntervalMs} = addCssGridMarks(taskTimeMs);
 
     // We want each bar to look like this:
     //   <div class="tr">
@@ -106,7 +106,7 @@ function renderChart(data) {
     // We create all this html in one go and use innerHTML to insert it
     // into the html proper.
     var html = [];
-    var nodes = getNodeList(data.jobs);
+    var nodes = getNodeList(data.builds);
     nodes.forEach(node => {
         var id = node.id;
         // Add a style that children can use to collapse this node
@@ -134,24 +134,24 @@ function renderChart(data) {
         // Add the bar!
         html.push(`<div class="bar-container">`);
         html.push(`<div class="bar">`);
-        // So all our jobs line up on the x-axis, we insert "fake"
-        // intervals from deploy-start-time to job-start-time,
-        // and from job-end-time to deploy-end-time.
-        var preJobInterval = {
-            startTimeMs: data.deployStartTimeMs,
+        // So all our builds line up on the x-axis, we insert "fake"
+        // intervals from task-start-time to build-start-time,
+        // and from build-end-time to task-end-time.
+        var preBuildInterval = {
+            startTimeMs: data.taskStartTimeMs,
             endTimeMs: node.intervals[0].startTimeMs,
-            timeRangeRelativeToJobStart: "",
-            mode: "[job not started]",
+            timeRangeRelativeToBuildStart: "",
+            mode: "[build not started]",
             colorIndex: "transparent",
         };
-        var intervals = [preJobInterval, ...node.intervals];
+        var intervals = [preBuildInterval, ...node.intervals];
         intervals.forEach(interval => {
             var pct = ((interval.endTimeMs - interval.startTimeMs) * 100
-                       / deployTimeMs);
+                       / taskTimeMs);
             html.push(`<div class="interval c${interval.colorIndex}" ` +
                       `style="max-width:${pct}%">`);
             html.push(`<div class="tooltip">${safe(interval.mode)}: ` +
-                      `${interval.timeRangeRelativeToJobStart}</div>`);
+                      `${interval.timeRangeRelativeToBuildStart}</div>`);
             html.push(`</div>`);
         });
         html.push(`</div>`);
