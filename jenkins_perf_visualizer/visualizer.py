@@ -54,9 +54,7 @@ This script works in three main stages:
 """
 from __future__ import absolute_import
 
-import errno
 import json
-import multiprocessing.pool
 import os
 import re
 import time
@@ -71,14 +69,6 @@ import steps
 
 # TODO(csilvers): move to a config file
 KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
-
-
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
 
 
 def create_html(job_datas):
@@ -112,67 +102,6 @@ def create_html(job_datas):
         .replace('{{js}}', js) \
         .replace('{{css}}', css) \
         .replace('{{data}}', json.dumps(deploy_data, sort_keys=True, indent=2))
-
-
-def _download_one_build(param):
-    # (The weird parameter format is because this is used by Pool().)
-    (job, build_id, output_dir, jenkins, force) = param
-    print("Fetching %s:%s" % (job, build_id))
-    try:
-        (_, job_params, job_start_time, outfile) = fetch.fetch_build(
-            job, build_id, output_dir, jenkins, force)
-    except fetch.DataError as e:
-        print("ERROR: skipping %s:%s: %s" % (e.job, e.build_id, e))
-        return
-
-    # Now create a symlink organized by date and title.
-    yyyy_mm = time.strftime("%Y-%m", time.localtime(job_start_time))
-    title = job_params.get('REVISION_DESCRIPTION', '<unknown job>')
-    category_dir = os.path.join(output_dir, '%s.%s' % (yyyy_mm, title))
-    symlink = os.path.join(category_dir, os.path.basename(outfile))
-    if force and os.path.exists(symlink):
-        os.unlink(symlink)
-    if not os.path.exists(symlink):
-        mkdir_p(category_dir)
-        os.symlink(os.path.relpath(outfile, os.path.dirname(symlink)),
-                   symlink)
-
-
-def download_builds(builds, output_dir, jenkins_username, jenkins_password,
-                    force=False):
-    """Download and save the data-needed-to-render for all jobs.
-
-    We ask jenkins what builds it knows about for the given jobs,
-    then download them all to get a `.data` file that is suitable
-    for passing as input to this script (at some later date) to
-    graph this build.
-
-    Arguments:
-        builds: a list of either builds or jobs, e..g
-            ["deploy/build-webapp", "deploy/webapp-test:1214"]
-        For builds where the build-id is omitted, we fetch all
-        build-ids for the given job.
-        output_dir: the directory to put all the data files
-        jenkins_username, jenkins_password: a valid API token
-        force: if False, don't fetch any jobs that already have a
-               data-file in output_dir.  If True, fetch everything.
-    """
-    if jenkins_password:
-        jenkins_client = jenkins.get_client_via_password(
-            jenkins_username, jenkins_password)
-    else:
-        jenkins_client = jenkins.get_client_via_keeper(KEEPER_RECORD_ID)
-    for build in builds:
-        if ':' in build:
-            (job, build_id) = build.split(':')
-            build_ids = [build_id]
-        else:
-            job = build
-            build_ids = jenkins_client.fetch_all_build_ids(job)
-
-        pool = multiprocessing.pool.ThreadPool(7)  # pool size is arbitrary
-        pool.map(_download_one_build,
-                 [(job, b, output_dir, jenkins, force) for b in build_ids])
 
 
 def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
@@ -231,21 +160,12 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--output-dir',
                         default='/tmp/jenkins-job-perf-analysis',
                         help='Directory to write the flamechart output file')
-    parser.add_argument('--fetch-only', action='store_true',
-                        help=('Only fetch the jenkins data, but do not '
-                              'create a graph.  In this mode, the BUILD '
-                              'arguments can be just a job-name, in which '
-                              'case we download all builds for that job.'))
 
     args = parser.parse_args()
 
     try:
-        if args.fetch_only:
-            download_builds(args.build, args.output_dir,
-                            args.jenkins_username, args.jenkins_pw)
-        else:
-            main(args.build, args.output_dir,
-                 args.jenkins_username, args.jenkins_pw)
+        main(args.build, args.output_dir,
+             args.jenkins_username, args.jenkins_pw)
     except Exception:
         import pdb
         import sys
