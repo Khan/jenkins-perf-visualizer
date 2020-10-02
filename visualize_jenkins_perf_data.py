@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""Emit a flamechart that shows where time is spent during a deploy.
+"""Emit a chart that shows where time is spent during a deploy.
 
 The output is a chart.  The x axis is seconds since the beginning
 of the input jenkins job until the end.  (If multiple jobs are specified
@@ -54,54 +54,19 @@ This script works in three main stages:
 """
 from __future__ import absolute_import
 
-import json
 import os
-import re
-import time
 import webbrowser
 
-import builds
-import fetch
-import jenkins
-import nodes
-import steps
+from jenkins_perf_visualizer import builds
+from jenkins_perf_visualizer import fetch
+from jenkins_perf_visualizer import html
+from jenkins_perf_visualizer import jenkins
+from jenkins_perf_visualizer import nodes
+from jenkins_perf_visualizer import steps
 
 
 # TODO(csilvers): move to a config file
 KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
-
-
-def create_html(job_datas):
-    """Return an html page that will render our flame-like chart.
-
-    We use custom CSS to do this.
-    """
-    deploy_start_time_ms = min(j.data['jobStartTimeMs'] for j in job_datas)
-    deploy_end_time_ms = max(j.data['jobEndTimeMs'] for j in job_datas)
-    title = ('%s (%s)'
-             % (' + '.join(sorted(set(j.data['title'] for j in job_datas))),
-                time.strftime("%Y/%m/%d %H:%M:%S",
-                              time.localtime(deploy_start_time_ms / 1000))))
-    deploy_data = {
-        'jobs': [j.data for j in job_datas],
-        'title': title,
-        'colors': builds.COLORS,
-        'deployStartTimeMs': deploy_start_time_ms,
-        'deployEndTimeMs': deploy_end_time_ms,
-    }
-
-    visualizer_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(visualizer_dir, 'visualize.html')) as f:
-        template = f.read()
-    with open(os.path.join(visualizer_dir, 'visualize.js')) as f:
-        js = f.read()
-    with open(os.path.join(visualizer_dir, 'visualize.css')) as f:
-        css = f.read()
-
-    return template \
-        .replace('{{js}}', js) \
-        .replace('{{css}}', css) \
-        .replace('{{data}}', json.dumps(deploy_data, sort_keys=True, indent=2))
 
 
 def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
@@ -111,13 +76,8 @@ def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
         if build.endswith('.data'):  # Used a cached file to avoid the network
             (job, build_id) = os.path.basename(build[:-len('.data')]).replace(
                 '--', '/').split(':')
-            with open(build, 'rb') as f:
-                step_html = f.read().decode('utf-8')
-            m = re.search(r'<script>var parameters = (.*?)</script>',
-                          step_html)
-            job_params = json.loads(m.group(1) if m else '{}')
-            # We get the job-start time by the file's mtime.
-            job_start_time = os.path.getmtime(build)
+            (step_html, job_params, job_start_time) = (
+                fetch.fetch_from_datafile(build))
             outfile = build
         else:
             if jenkins_password:
@@ -138,9 +98,9 @@ def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
     job_datas.sort(key=lambda jd: jd.job_start_time_ms)
 
     html_file = outfile.replace('.data', '.html')
-    html = create_html(job_datas)
+    output_html = html.create_html(job_datas)
     with open(html_file, 'wb') as f:
-        f.write(html.encode('utf-8'))
+        f.write(output_html.encode('utf-8'))
     webbrowser.open(html_file)
 
 
@@ -150,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'build', nargs='+',
         help=("Jenkins builds to fetch, e.g. deploy/build-webapp:1543 "
-              "OR a json-filename like deploy-build-webapp:1543.json."))
+              "OR a data-filename like deploy-build-webapp:1543.data."))
     parser.add_argument('--jenkins-username',
                         default='jenkins@khanacademy.org')
     parser.add_argument('--jenkins-pw',
@@ -160,16 +120,6 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--output-dir',
                         default='/tmp/jenkins-job-perf-analysis',
                         help='Directory to write the flamechart output file')
-
     args = parser.parse_args()
 
-    try:
-        main(args.build, args.output_dir,
-             args.jenkins_username, args.jenkins_pw)
-    except Exception:
-        import pdb
-        import sys
-        import traceback
-        extype, value, tb = sys.exc_info()
-        traceback.print_exc()
-        pdb.post_mortem(tb)
+    main(args.build, args.output_dir, args.jenkins_username, args.jenkins_pw)

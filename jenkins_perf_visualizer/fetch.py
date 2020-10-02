@@ -32,7 +32,7 @@ def mkdir_p(path):
             raise
 
 
-def _fetch_from_datafile(fname):
+def fetch_from_datafile(fname):
     """Fetch data from the cached data-file, instead of asking Jenkins.
 
     The datafile is one that was saved via a previous call to fetch_build().
@@ -69,7 +69,7 @@ def fetch_build(job, build_id, output_dir, jenkins_client, force=False):
         output_dir, '%s:%s.data' % (job.replace('/', '--'), build_id))
 
     if not force and os.path.exists(outfile):
-        (step_html, job_params, job_start_time) = _fetch_from_datafile(outfile)
+        (step_html, job_params, job_start_time) = fetch_from_datafile(outfile)
     else:
         (step_html, job_params, job_start_time) = _fetch_from_jenkins(
             job, build_id, jenkins_client)
