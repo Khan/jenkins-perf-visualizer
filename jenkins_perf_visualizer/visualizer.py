@@ -63,6 +63,7 @@ import time
 import webbrowser
 
 import builds
+import fetch
 import jenkins
 import nodes
 import steps
@@ -70,14 +71,6 @@ import steps
 
 # TODO(csilvers): move to a config file
 KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
-
-
-class DataError(Exception):
-    """An error reading or parsing Jenkins data for a build."""
-    def __init__(self, job, build_id, message):
-        super(DataError, self).__init__(message)
-        self.job = job
-        self.build_id = build_id
 
 
 def mkdir_p(path):
@@ -121,52 +114,14 @@ def create_html(job_datas):
         .replace('{{data}}', json.dumps(deploy_data, sort_keys=True, indent=2))
 
 
-def _fetch_build(job, build_id, output_dir, jenkins_client, force=False):
-    """Download, save, and return the data-needed-to-render for one job."""
-    mkdir_p(output_dir)
-    outfile = os.path.join(
-        output_dir, '%s:%s.data' % (job.replace('/', '--'), build_id))
-
-    if not force and os.path.exists(outfile):
-        with open(outfile, 'rb') as f:
-            step_html = f.read().decode('utf-8')
-        m = re.search(r'<script>var parameters = (.*?)</script>',
-                      step_html)
-        job_params = json.loads(m.group(1) if m else '{}')
-        # We get the job-start time by the file's mtime.
-        job_start_time = os.path.getmtime(outfile)
-        return (step_html, job_params, job_start_time, outfile)
-
-    try:
-        job_params = jenkins_client.fetch_job_parameters(job, build_id)
-        step_html = jenkins_client.fetch_pipeline_steps(job, build_id)
-        step_root = steps.parse_pipeline_steps(step_html)
-        if not step_root:
-            raise DataError(job, build_id, "invalid job? (no steps found)")
-        job_start_time = jenkins_client.fetch_job_start_time(
-            job, build_id, step_root)
-    except jenkins.HTTPError as e:
-        raise DataError(job, build_id, "HTTP error: %s" % e)
-
-    with open(outfile, 'wb') as f:
-        f.write(step_html.encode('utf-8'))
-        params_text = ('\n\n<script>var parameters = %s</script>'
-                       % json.dumps(job_params))
-        f.write(params_text.encode('utf-8'))
-    # Set the last-modified time of this file to its start-time.
-    os.utime(outfile, (job_start_time, job_start_time))
-
-    return (step_html, job_params, job_start_time, outfile)
-
-
 def _download_one_build(param):
     # (The weird parameter format is because this is used by Pool().)
     (job, build_id, output_dir, jenkins, force) = param
     print("Fetching %s:%s" % (job, build_id))
     try:
-        (_, job_params, job_start_time, outfile) = _fetch_build(
+        (_, job_params, job_start_time, outfile) = fetch.fetch_build(
             job, build_id, output_dir, jenkins, force)
-    except DataError as e:
+    except fetch.DataError as e:
         print("ERROR: skipping %s:%s: %s" % (e.job, e.build_id, e))
         return
 
@@ -243,8 +198,8 @@ def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
                 jenkins_client = jenkins.get_client_via_keeper(
                     KEEPER_RECORD_ID)
             (job, build_id) = build.split(':')
-            (step_html, job_params, job_start_time, outfile) = _fetch_build(
-                job, build_id, output_dir, jenkins_client)
+            (step_html, job_params, job_start_time, outfile) = (
+                fetch.fetch_build(job, build_id, output_dir, jenkins_client))
 
         step_root = steps.parse_pipeline_steps(step_html)
         node_root = nodes.steps_to_nodes(step_root)
