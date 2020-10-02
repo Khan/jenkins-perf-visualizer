@@ -1,0 +1,105 @@
+/* The title of the page. */
+h1 {
+    width: 100%;
+    text-align: center;
+    color: #505050;
+}
+
+/* The main container of the chart. */
+.perfchart {
+    display: table;
+    width: 100%;
+}
+
+/* A row of the chart, holding information for one Node() */
+.tr {
+    display: table-row;
+    width: 100%;
+}
+
+/* Each chart-row has two parts: the "label" which says the name of
+ * the node, and the "bar" which contains the timing-graph bar.
+ * We use a stacked bar graph, so the bar actually consists of
+ * multiple bars next to each other; each such is called an "interval".
+ */
+.label {
+    display: table-cell;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-size: 10pt;
+    font-family: sans-serif;
+    padding-right: 0.5em;       /* SPACE BETWEEN TEXT AND BAR */
+}
+.bar-container {
+    display: table-cell;
+    width: 100%;
+}
+.bar {
+    height: 12pt;               /* WIDTH (WELL, HEIGHT) OF THE BAR */
+    width: 100%;
+    margin: 2pt auto 2pt auto;  /* SPACING BETWEEN ROWS */
+    position: relative;
+    display: block;
+}
+.interval {
+    float: left;
+    height: 100%;
+    width: 100%;
+}
+
+/* The ticks on the x axis */
+.lastrow {
+    border-top: 1pt solid #BBBBBB;
+    height: 6pt;
+}
+.x-axis {
+    display: table-cell;
+    width: 100%;
+}
+.axis-label, .pre-axis-label {
+    text-align: center;
+    height: 12pt;
+    width: 100%;
+    padding-top: 2pt;
+    font-size: 10pt;
+    font-family: sans-serif;
+    float: left;
+    position: relative;
+    display: block;
+}
+
+/* The tooltip showing more information when hovering over an interval. */
+/* Inspired by https://www.w3schools.com/css/css_tooltip.asp */
+.interval .tooltip {
+    visibility: hidden;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    font-size: 8pt;
+    font-family: sans-serif;
+    padding: 5px 10px;
+    border-radius: 6px;
+    /* Position the tooltip text above the div */
+    position: absolute;
+    bottom: 110%;
+    left: 30%;
+    z-index: 1;
+}
+.interval:hover .tooltip {
+    visibility: visible;
+}
+
+/* Toggle the little triangle whenever a row is collapsed; based on
+ * https://www.digitalocean.com/community/tutorials/css-collapsible */
+.toggle {
+    display: none;
+}
+.lbl-toggle .label::before {
+    font-size: 10pt;
+    content: "\25BE";
+    vertical-align: middle;
+    padding-right: 3px;
+}
+.toggle:checked + .lbl-toggle .label::before {
+    content: "\25B8";
+}

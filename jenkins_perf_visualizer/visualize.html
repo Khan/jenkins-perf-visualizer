@@ -1,0 +1,19 @@
+<html>
+  <head>
+    <!-- TODO(csilvers): version these, and make them external? -->
+    <style>{{css}}</style>
+    <script>{{js}}</script>
+  </head>
+  <body>
+    <!-- The contents here are filled in by javascript -->
+    <h1 id="title">Rendering...</h1>
+    <div id="perfchart" class="flamechart">
+      ...
+    </div>
+
+    <script>
+      var data = {{data}};  // TODO(csilvers): get the json via fetch() instead
+      renderChart(data);
+    </script>
+  </body>
+</html>
