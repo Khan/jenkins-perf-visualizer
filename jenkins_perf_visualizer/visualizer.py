@@ -51,7 +51,6 @@ This script works in three main stages:
 """
 from __future__ import absolute_import
 
-import base64
 import errno
 import json
 import multiprocessing.pool
@@ -59,11 +58,13 @@ import os
 import re
 import subprocess
 import time
-try:
-    import urllib2   # python2
-except ImportError:
-    import urllib.request as urllib2  # python3
 import webbrowser
+
+import jenkins
+
+
+# TODO(csilvers): move to a config file
+KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
 
 
 # The modes that a job can be in.
@@ -164,101 +165,6 @@ def mkdir_p(path):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-
-
-class JenkinsFetcher(object):
-    def __init__(self, username, password):
-        if not username:
-            raise ValueError("Must specify jenkins username")
-        if not password:
-            password = self._get_from_keeper()
-        self.username = username
-        self.password = password
-        self.base = 'https://jenkins.khanacademy.org'
-
-    KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
-
-    def _get_from_keeper(self):
-        # This requires the keepercommander commandline tool be installed.
-        text = subprocess.check_output([
-            'keeper',
-            '--config=%s/.keeper-config.json' % os.getenv("HOME"),
-            '--format=json',
-            'g',
-            self.KEEPER_RECORD_ID,
-        ])
-        record = json.loads(text)
-        return record['password']
-
-    def fetch(self, url_path):
-        request = urllib2.Request(self.base + url_path)
-        auth = base64.b64encode(
-            ('%s:%s' % (self.username, self.password)).encode('ascii'))
-        request.add_header("Authorization", b"Basic " + auth)
-        # Ended up not being needed, but it can't hurt!
-        request.add_header("Cookie", "jenkins-timestamper=elapsed")
-
-        r = urllib2.urlopen(request)   # @Nolint(we won't retry here)
-        assert r.code == 200
-        return r.read()
-
-    def fetch_for_job(self, job_name, build_id, url_suffix):
-        """Download jenkins/job_name/build_id/suffix.
-
-        job_name is, e.g. 'deploy/build-webapp'
-        """
-        url_path = os.path.join(('/' + job_name).replace('/', '/job/'),
-                                str(build_id) if build_id is not None else '',
-                                url_suffix)
-        return self.fetch(url_path)
-
-    def fetch_pipeline_steps(self, job_name, build_id):
-        """Download the pipeline-steps html page for the given job/id.
-
-        NOTE: it would be more principled to use the API for this;
-        while it's under-documented at best, there are some pointers at
-           https://issues.jenkins-ci.org/browse/JENKINS-29188
-        We could get the tree structure from
-           <build-url>/api/json?tree=actions[nodes[displayName,id,parents]]
-        and the timing data from
-           <build-url>/execution/node/<step-id>/wfapi/
-
-        But the API doesn't provide execution as a tree -- it sees it as
-        linear, except for parallel() nodes -- and doesn't aggregate times
-        for blocks, both of which we need, both of which the "pipeline steps"
-        html page does for us, and and both of which are surprisingly
-        difficult to do correctly.  So we just go and scrape the html page.
-
-        job_name is, e.g. 'deploy/build-webapp'
-        """
-        text = self.fetch_for_job(job_name, build_id, 'flowGraphTable')
-        return text.decode('utf-8')
-
-    def fetch_job_start_time(self, job_name, build_id, root_step):
-        """We need to know the node-id of the start-step of this job."""
-        s = self.fetch_for_job(job_name, build_id,
-                               'execution/node/%s/wfapi/' % root_step.id)
-        data = json.loads(s)
-        return data["startTimeMillis"] / 1000.0
-
-    def fetch_job_parameters(self, job_name, build_id):
-        """Fetch the jenkins parameters that this job was run with."""
-        s = self.fetch_for_job(job_name, build_id,
-                               'api/json?tree=actions[parameters[name,value]]')
-        data = json.loads(s)
-        params = next(
-            (a for a in data.get('actions', {})
-             if a.get('_class') == 'hudson.model.ParametersAction'),
-            {}
-        )
-        return {e["name"]: e["value"] for e in params.get('parameters', {})}
-
-    def fetch_all_build_ids(self, job_name):
-        """Fetch all the build-ids jenkins has for a given job."""
-        s = self.fetch_for_job(job_name, None,
-                               'api/json?tree=allBuilds[number]')
-        data = json.loads(s)
-        return [b['number'] for b in data['allBuilds']]
 
 
 class Step(object):
@@ -923,7 +829,7 @@ document.getElementById('flamechart').innerHTML = html.join("\n");
 """ % json.dumps(deploy_data, sort_keys=True, indent=2)
 
 
-def _fetch_build(job, build_id, output_dir, jenkins, force=False):
+def _fetch_build(job, build_id, output_dir, jenkins_client, force=False):
     """Download, save, and return the data-needed-to-render for one job."""
     mkdir_p(output_dir)
     outfile = os.path.join(
@@ -940,13 +846,14 @@ def _fetch_build(job, build_id, output_dir, jenkins, force=False):
         return (step_html, job_params, job_start_time, outfile)
 
     try:
-        job_params = jenkins.fetch_job_parameters(job, build_id)
-        step_html = jenkins.fetch_pipeline_steps(job, build_id)
+        job_params = jenkins_client.fetch_job_parameters(job, build_id)
+        step_html = jenkins_client.fetch_pipeline_steps(job, build_id)
         step_root = parse_pipeline_steps(step_html)
         if not step_root:
             raise DataError(job, build_id, "invalid job? (no steps found)")
-        job_start_time = jenkins.fetch_job_start_time(job, build_id, step_root)
-    except urllib2.HTTPError as e:
+        job_start_time = jenkins_client.fetch_job_start_time(
+            job, build_id, step_root)
+    except jenkins.HTTPError as e:
         raise DataError(job, build_id, "HTTP error: %s" % e)
 
     with open(outfile, 'wb') as f:
@@ -1003,14 +910,18 @@ def download_builds(builds, output_dir, jenkins_username, jenkins_password,
         force: if False, don't fetch any jobs that already have a
                data-file in output_dir.  If True, fetch everything.
     """
-    jenkins = JenkinsFetcher(jenkins_username, jenkins_password)
+    if jenkins_password:
+        jenkins_client = jenkins.get_client_via_password(
+            jenkins_username, jenkins_password)
+    else:
+        jenkins_client = jenkins.get_client_via_keeper(KEEPER_RECORD_ID)
     for build in builds:
         if ':' in build:
             (job, build_id) = build.split(':')
             build_ids = [build_id]
         else:
             job = build
-            build_ids = jenkins.fetch_all_build_ids(job)
+            build_ids = jenkins_client.fetch_all_build_ids(job)
 
         pool = multiprocessing.pool.ThreadPool(7)  # pool size is arbitrary
         pool.map(_download_one_build,
@@ -1033,10 +944,15 @@ def main(builds, output_dir, jenkins_username=None, jenkins_password=None):
             job_start_time = os.path.getmtime(build)
             outfile = build
         else:
-            jenkins = JenkinsFetcher(jenkins_username, jenkins_password)
+            if jenkins_password:
+                jenkins_client = jenkins.get_client_via_password(
+                    jenkins_username, jenkins_password)
+            else:
+                jenkins_client = jenkins.get_client_via_keeper(
+                    KEEPER_RECORD_ID)
             (job, build_id) = build.split(':')
             (step_html, job_params, job_start_time, outfile) = _fetch_build(
-                job, build_id, output_dir, jenkins)
+                job, build_id, output_dir, jenkins_client)
 
         step_root = parse_pipeline_steps(step_html)
         node_root = steps_to_nodes(step_root)
@@ -1064,7 +980,7 @@ if __name__ == '__main__':
     parser.add_argument('--jenkins-pw',
                         help=('API token that gives access to job data. '
                               'If not set, fetch the secret from keeper '
-                              '(record %s)' % JenkinsFetcher.KEEPER_RECORD_ID))
+                              '(record %s)' % KEEPER_RECORD_ID))
     parser.add_argument('-d', '--output-dir',
                         default='/tmp/jenkins-job-perf-analysis',
                         help='Directory to write the flamechart output file')
