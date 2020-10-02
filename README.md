@@ -34,7 +34,7 @@ problems.
 
 Here is an example graph:
 
-![visualization graph](https://github.com/Khan/jenkins-perf-visualizer/blob/master/example-graph.png?raw=true)
+![visualization graph](https://github.com/Khan/jenkins-perf-visualizer/blob/main/example-graph.png?raw=true)
 
 ## Getting Started
 
