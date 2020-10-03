@@ -21,11 +21,14 @@ HTTPError = request.HTTPError  # re-export for convenience
 
 
 class JenkinsFetcher(object):
-    def __init__(self, username, password):
+    def __init__(self, base, username, password):
         """The username and password of a Jenkins user with permissions.
 
         This user should have the ability to read information about all
         builds.
+
+        The base is the protocol + host to connect to, e.g.
+        "https://jenkins.mycompany.com/".
 
         DO NOT USE A LOGIN PASSWORD!  Instead create an API token
         and use that as the password.
@@ -34,7 +37,7 @@ class JenkinsFetcher(object):
             raise ValueError("Must specify jenkins username")
         self.username = username
         self.password = password
-        self.base = 'https://jenkins.khanacademy.org'
+        self.base = base.rstrip('/')
 
     def fetch(self, url_path):
         req = request.Request(self.base + url_path)
@@ -108,12 +111,12 @@ class JenkinsFetcher(object):
         return [b['number'] for b in data['allBuilds']]
 
 
-def get_client_via_password(username, password):
+def _get_client_via_password(base, username, password):
     """Create and return a JenkinsFetcher with given username/password."""
-    return JenkinsFetcher(username, password)
+    return JenkinsFetcher(base, username, password)
 
 
-def get_client_via_keeper(keeper_record_id):
+def _get_client_via_keeper(base, keeper_record_id):
     """Create a JenkinsFetcher, getting username/password from Keeper Security.
 
     This requires you to have the keepercommander CLI tool installed:
@@ -132,4 +135,21 @@ def get_client_via_keeper(keeper_record_id):
         keeper_record_id,
     ])
     record = json.loads(text)
-    return JenkinsFetcher(record['login'], record['password'])
+    return JenkinsFetcher(base, record['login'], record['password'])
+
+
+def get_client(config):
+    auth = config.get('jenkinsAuth', {})
+    base = config.get('jenkinsBase')
+    if not base:
+        raise ValueError('No jenkinsBase config option specified')
+
+    if auth.get('username') and auth.get('password'):
+        return _get_client_via_password(
+            base, auth['username'], auth['password'])
+
+    if auth.get('keeperRecordId'):
+        return _get_client_via_keeper(
+            base, auth['keeperRecordId'])
+
+    raise ValueError("No method specified to connect to jenkins.")

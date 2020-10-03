@@ -64,13 +64,13 @@ function addCssGridMarks(taskTimeMs) {
     return {numTicks, tickIntervalMs};
 }
 
-// TODO(csilvers): hard-code this in the css instead.
-function addCssColors(colors) {
+function addCssColors(colorToId) {
     // Insert the CSS for the colors.  The white color we actually
     // want to be transparent (so grid-marks show up on it), so we
     // handle that case specially.  In addition there's a style to be
     // *explicitly* transparent.
-    colors.forEach((c, i) => {
+    Object.keys(colorToId).forEach(c => {
+        var i = colorToId[c];
         if (c.match(/#ffffff/i)) {
             document.styleSheets[0].insertRule(`.c${i} { visibility: hidden; }`)
         } else {
@@ -86,7 +86,7 @@ function renderChart(data) {
     var taskTimeMs = data.taskEndTimeMs - data.taskStartTimeMs;
 
     // Add some CSS we need that must be generated dynamically.
-    addCssColors(data.colors);
+    addCssColors(data.colorToId);
     var {numTicks, tickIntervalMs} = addCssGridMarks(taskTimeMs);
 
     // We want each bar to look like this:
@@ -142,13 +142,13 @@ function renderChart(data) {
             endTimeMs: node.intervals[0].startTimeMs,
             timeRangeRelativeToBuildStart: "",
             mode: "[build not started]",
-            colorIndex: "transparent",
+            colorId: "transparent",
         };
         var intervals = [preBuildInterval, ...node.intervals];
         intervals.forEach(interval => {
             var pct = ((interval.endTimeMs - interval.startTimeMs) * 100
                        / taskTimeMs);
-            html.push(`<div class="interval c${interval.colorIndex}" ` +
+            html.push(`<div class="interval c${interval.colorId}" ` +
                       `style="max-width:${pct}%">`);
             html.push(`<div class="tooltip">${safe(interval.mode)}: ` +
                       `${interval.timeRangeRelativeToBuildStart}</div>`);

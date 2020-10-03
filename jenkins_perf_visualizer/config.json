@@ -1,0 +1,119 @@
+// An example config.json file for jenkins-per-visualizer.
+// This is like a normal json file, except comments are allowed.
+// Only full-line comments are supported, not end-of-line comments.
+// This file lists and explains all supported config options.
+{
+    // -- OPTIONS RELATED TO THE JENKINS SERVER.
+
+    // Protocol plus hostname of your Jenkins instance.
+    "jenkinsBase": "https://jenkins.khanacademy.org/",
+
+    // The method you want to use to authorize this script with
+    // jenkins.  The fields you use here determine the auth method.
+    "jenkinsAuth": {
+        // Option 1: Specify username and API token in plaintext.
+        //"username": "jenkins@khanacademy.org",
+        //"password": "1234",
+
+        // Option 2: Specify a Keeper Security record-id that holds
+        //           the username and API token.
+        "keeperRecordId": "mHbUyJXAmnZyqLY3pMUmjQ"
+    },
+
+    // -- OPTIONS RELATED TO GRAPH DATA.
+
+    // When downloading build data, we create a symlink job that puts
+    // all builds from the same "task" into a single folder.  Builds
+    // are said to be in the same task if they share the same value
+    // for a Jenkins build parameter (the things you set via "build
+    // with parameters").  So for instance, if you run 3 different
+    // jenkins jobs when deploying your app, and a build of each job
+    // has the same value for the "DEPLOY_BRANCH" parameter when
+    // deploying a particular piece of code, then DEPLOY_BRANCH would
+    // be the groupingParameter.  Set to null to disable this feature.
+    "groupingParameter": "BUILDMASTER_DEPLOY_ID",
+
+    // We take the title of the graph from this parameter.  It is
+    // often the groupingParameter but need not be.  If not all builds
+    // in a task have the same value of this parameter, the title is
+    // taken from one of them arbitrarily.
+    "titleParameter": "REVISION_DESCRIPTION",
+
+    // -- OPTIONS RELATED TO THE GRAPH UI.
+
+    // Each bar of the visualization graph has a label and a color,
+    // and the color is determined from the label based on the mapping
+    // below.  A bar represents a Jenkins stage or parallel-step, and
+    // you should have an entry here that matches every argument to
+    // stage(), and label used with parallel(), that any of your jobs
+    // can have.  You should also have an entry that matches
+    // "<job-name:build-id>".
+    //
+    // The keys here are regular expressions that must match the
+    // *entire* label (that is, they have an implicit "^" and "$".)
+    // The values are colors of the form "#RRGGBB".
+    "colors": {
+        // Colors I use:
+        // #00008b  blue
+        // #006400  green
+        // #a9a9a9  gray
+        // #b22222  red
+        // #daa520  gold
+
+        // Build-root
+        "<.*>": "#b22222",
+
+        // All builds (stages run via notify.groovy and other helper functions)
+        "main": "#b22222",
+        "_watchdog": "#a9a9a9",
+        "Resolving commit": "#006400",
+        "Talking to buildmaster": "#006400",
+
+        // 2ndsmoketest-priming
+        "Priming": "#daa520",
+
+        // build-webapp
+        "Merging in master": "#006400",
+        "Deploying": "#daa520",
+        "deploy-.*": "#00008b",
+        "Send changelog": "#006400",
+
+        // deploy-webapp
+        "Await first smoke test and set-default confirmation": "#a9a9a9",
+        "Promoting and monitoring": "#daa520",
+        "monitor": "#00008b",
+        "promote": "#00008b",
+        "wait-and-start-tests": "#00008b",
+        "Await finish-up confirmation": "#a9a9a9",
+        "Merging to master": "#006400",
+
+        // merge-branches
+        // <none needed>
+
+        // webapp-test
+        "Determining splits & running tests": "#daa520",
+        "Running tests": "#006400",
+        "determine-splits": "#006400",
+        "Analyzing results": "#006400",
+        "^test-.*": "#00008b",
+
+        // e2e-test
+        "e2e-test-.*": "#00008b",
+        "job-.*": "#daa520"
+    },
+
+    // TODO(csilvers): add a config option for tooltip text
+    // TODO(csilvers): add a config option for start-time (in title)?
+    // TODO(csilvers): add a config option for color saturation?
+    // TODO(csilvers): add a config option for maxTicks?
+
+    // -- OPTIONS RELATED TO FILE STORAGE.
+
+    // Where to store data files as we download them, and also the
+    // generated html.
+    "datadir": "/tmp/jenkins-build-perf-analysis",
+
+    // When downloading build data in bulk, how many threads to use.
+    // Set to 1 to disable threading.
+    "downloadThreads": 7
+}

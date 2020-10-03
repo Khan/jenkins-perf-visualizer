@@ -3,10 +3,10 @@ import json
 import os
 import time
 
-from jenkins_perf_visualizer import builds
+from jenkins_perf_visualizer import colors
 
 
-def create_html(build_datas):
+def create_html(config, build_datas):
     """Return an html page that will render our flame-like chart.
 
     We use custom CSS to do this.
@@ -23,7 +23,7 @@ def create_html(build_datas):
     task_data = {
         'builds': [j.data for j in build_datas],
         'title': title,
-        'colors': builds.COLORS,
+        'colorToId': colors.color_to_id(config),
         'taskStartTimeMs': task_start_time_ms,
         'taskEndTimeMs': task_end_time_ms,
     }

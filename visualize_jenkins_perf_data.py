@@ -55,6 +55,7 @@ import os
 import webbrowser
 
 from jenkins_perf_visualizer import builds
+from jenkins_perf_visualizer import configuration
 from jenkins_perf_visualizer import fetch
 from jenkins_perf_visualizer import html
 from jenkins_perf_visualizer import jenkins
@@ -62,11 +63,7 @@ from jenkins_perf_visualizer import nodes
 from jenkins_perf_visualizer import steps
 
 
-# TODO(csilvers): move to a config file
-KEEPER_RECORD_ID = 'mHbUyJXAmnZyqLY3pMUmjQ'
-
-
-def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
+def main(config, buildses):
     """jenkins_* vars are not needed if all builds are .data files."""
     build_datas = []
     for build in buildses:
@@ -77,25 +74,21 @@ def main(buildses, output_dir, jenkins_username=None, jenkins_password=None):
                 fetch.fetch_from_datafile(build))
             outfile = build
         else:
-            if jenkins_password:
-                jenkins_client = jenkins.get_client_via_password(
-                    jenkins_username, jenkins_password)
-            else:
-                jenkins_client = jenkins.get_client_via_keeper(
-                    KEEPER_RECORD_ID)
+            jenkins_client = jenkins.get_client(config)
+            datadir = config.get('datadir', '/tmp')
             (job, build_id) = build.split(':')
             (step_html, build_params, build_start_time, outfile) = (
-                fetch.fetch_build(job, build_id, output_dir, jenkins_client))
+                fetch.fetch_build(job, build_id, datadir, jenkins_client))
 
         step_root = steps.parse_pipeline_steps(step_html)
         node_root = nodes.steps_to_nodes(step_root)
         build_datas.append(builds.BuildData(
-            job, build_id, build_start_time, build_params, node_root))
+            config, job, build_id, build_start_time, build_params, node_root))
 
     build_datas.sort(key=lambda jd: jd.build_start_time_ms)
 
     html_file = outfile.replace('.data', '.html')
-    output_html = html.create_html(build_datas)
+    output_html = html.create_html(config, build_datas)
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
     webbrowser.open(html_file)
@@ -108,15 +101,12 @@ if __name__ == '__main__':
         'build', nargs='+',
         help=("Jenkins builds to fetch, e.g. deploy/build-webapp:1543 "
               "OR a data-filename like deploy-build-webapp:1543.data."))
-    parser.add_argument('--jenkins-username',
-                        default='jenkins@khanacademy.org')
-    parser.add_argument('--jenkins-pw',
-                        help=('API token that gives access to build data. '
-                              'If not set, fetch the secret from keeper '
-                              '(record %s)' % KEEPER_RECORD_ID))
-    parser.add_argument('-d', '--output-dir',
-                        default='/tmp/jenkins-build-perf-analysis',
-                        help='Directory to write the flamechart output file')
-    args = parser.parse_args()
+    # Lets you specify a config file to control everything else.
+    configuration.add_config_arg(parser)
+    # Lets you override the values in the config file on a per-run basis.
+    configuration.add_datadir_arg(parser)
 
-    main(args.build, args.output_dir, args.jenkins_username, args.jenkins_pw)
+    args = parser.parse_args()
+    config = configuration.load(args)
+
+    main(config, args.build)
