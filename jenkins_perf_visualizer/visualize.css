@@ -55,17 +55,25 @@ h1 {
 .x-axis {
     display: table-cell;
     width: 100%;
-}
-.axis-label, .pre-axis-label {
-    text-align: center;
     height: 12pt;
-    width: 100%;
-    padding-top: 2pt;
-    font-size: 10pt;
-    font-family: sans-serif;
-    float: left;
-    position: relative;
-    display: block;
+}
+.axis-gap {
+     float: left;
+     height: 100%;
+     width: 100%;
+     /* javascript will add `max-width`, to control the actual gap */
+}
+.axis-label {
+     float: left;
+     height: 100%;
+     width: 100%;
+     max-width: 0;
+     padding-top: 2pt;
+     font-size: 10pt;
+     font-family: sans-serif;
+     /* This is a trick to center the label-value below the tick mark */
+     display: flex;
+     justify-content: center;
 }
 
 /* The tooltip showing more information when hovering over an interval. */

@@ -54,12 +54,8 @@ function addCssGridMarks(taskTimeMs) {
       background-image: linear-gradient(to right, #BBBBBB 1px, transparent 1px);
     }`);
     // This ensures that the numbers on the x-axis have the right spacing.
-    document.styleSheets[0].insertRule(`.axis-label {
+    document.styleSheets[0].insertRule(`.axis-gap {
       max-width: ${tickGapPct}%;
-    }`);
-    // This is needed for the very first number.
-    document.styleSheets[0].insertRule(`.pre-axis-label {
-      max-width: ${tickGapPct/2}%;
     }`);
     return {numTicks, tickIntervalMs};
 }
@@ -173,10 +169,11 @@ function renderChart(data) {
     html.push(`<div class="tr">`);
     html.push(`<div class="label"></div>`);
     html.push(`<div class="x-axis">`);
-    html.push(`<div class="pre-axis-label"></div>`);
-    // TODO(csilvers): handle last tick.
-    for (var i = 1; i < numTicks - 1; i++) {
-        html.push(`<div class="axis-label">`);
+    for (var i = 0; i < numTicks; i++) {
+        if (i > 0) {
+            html.push(`<div class="axis-gap"></div>`);
+        }
+        html.push('<div class="axis-label">')
         html.push(`${Math.round(i * tickIntervalMs / 60000)}m`);
         html.push(`</div>`);
     }
