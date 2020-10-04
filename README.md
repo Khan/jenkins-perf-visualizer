@@ -14,20 +14,29 @@ that work inside Jenkins.
 
 This tools differs from those in the following respects:
 
-1. It provides data not only on a per-build basis, like most plug-ins,
-or on a per-stage basis, like the built-in visualizer, but also
-per-parallel-step.  This makes it easy to see, when running various
-tasks in parallel, which is the critical path.
+1. It provides datapoints not only on a per-build basis, like most
+plug-ins, or on a per-stage basis, like the built-in visualizer, but
+also per-parallel-step.  This makes it easy to see, when running
+various tasks in parallel, which is the critical path.
 
 2. It shows time-taken visually, as a stacked bar graph.  Other tools
 show time-takes as a number, making it hard to see at a glance where
 the time is being spent.
 
-3. It is a standalone tool, not part of Jenkins.  Among other
+3. It can graph a single "task" -- a collection of different build
+jobs that are part of a workflow -- on a single graph.  Other tools
+can only visualize a single build at a time, or, at best, historical
+builds for a single job.
+
+4. It is a standalone tool, not part of Jenkins.  Among other
 advantages, this makes it easy to examine historical data after
 Jenkins has deleted the information about a build.
 
-4. It distinguishes between time a build spends running, vs waiting
+5. The raw data used to generate the graph is stored in an
+easy-to-parse format, making it easy to run analyses over the data,
+use the data for alerts, etc.
+
+6. It distinguishes between time a build spends running, vs waiting
 for user input, sleeping, or waiting to start (because no executor is
 available).  This gives valuable insight how to solve performance
 problems.
