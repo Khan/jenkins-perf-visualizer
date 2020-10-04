@@ -34,7 +34,9 @@ Jenkins has deleted the information about a build.
 
 5. The raw data used to generate the graph is stored in an
 easy-to-parse format, making it easy to run analyses over the data,
-use the data for alerts, etc.
+use the data for alerts, etc.  For instance, in the example graph
+below, you could easily compute for each of the `deploy-to-x` nodes
+how often it was the one that took the longest to run.
 
 6. It distinguishes between time a build spends running, vs waiting
 for user input, sleeping, or waiting to start (because no executor is
