@@ -44,8 +44,9 @@ def _read(config_filename):
     return json.loads(content)
 
 
-def _normalize_and_validate(config):
+def _normalize_and_validate(config, config_dir):
     """Convert regexps to regexp type, validate all fields."""
+    # Compile all regexps.
     for color in config.get('colors', {}).values():
         if (not color.startswith('#')
                 or len(color) != 7
@@ -64,6 +65,13 @@ def _normalize_and_validate(config):
                 raise ValueError("Invalid regexp '%s' in config: %s"
                                  % (regexp, e))
 
+    # Absolutize all paths.
+    if 'datadir' in config:
+        config['datadir'] = os.path.join(config_dir, config['datadir'])
+    if 'passwordFile' in config.get('jenkinsAuth', {}):
+        config['jenkinsAuth']['passwordFile'] = os.path.join(
+            config_dir, config['jenkinsAuth']['passwordFile'])
+
     # TOOD(csilvers): finish validation code
 
     return config
@@ -80,16 +88,21 @@ def load(args):
     """
     if hasattr(args, 'config'):
         config = _read(args.config)
-        config['configDir'] = os.path.dirname(os.path.abspath(args.config))
+        config_dir = os.path.dirname(os.path.abspath(args.config))
     else:
-        config = {'configDir': os.path.dirname(os.path.abspath(__file__))}
+        config_dir = os.path.dirname(os.path.abspath(__file__))
 
     if hasattr(args, 'jenkins_base'):
         config['jenkinsBase'] = args.jenkins_base
-    if hasattr(args, 'jenkins_username'):
+    if hasattr(args, 'jenkins_password'):
         config['jenkinsAuth'] = {
             "username": args.jenkins_username,
             "password": args.jenkins_password,
+        }
+    if hasattr(args, 'jenkins_password_file'):
+        config['jenkinsAuth'] = {
+            "username": args.jenkins_username,
+            "passwordFile": args.jenkins_password_file,
         }
     if hasattr(args, 'keeper_record_id'):
         config['jenkinsAuth'] = {"keeperRecordId": args.keeper_record_id}
@@ -112,6 +125,6 @@ def load(args):
     if hasattr(args, 'download_threads'):
         config['downloadThreads'] = args.download_threads
 
-    config = _normalize_and_validate(config)
+    config = _normalize_and_validate(config, config_dir)
 
     return config

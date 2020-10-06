@@ -115,7 +115,8 @@
     // -- OPTIONS RELATED TO FILE STORAGE.
 
     // Where to store data files as we download them, and also the
-    // generated html.
+    // generated html.  If a relative dir, this is taken to be
+    // relative to the location of this file (config.json).
     "datadir": "/tmp/jenkins-build-perf-analysis",
 
     // When downloading build data in bulk, how many threads to use.

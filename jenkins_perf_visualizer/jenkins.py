@@ -149,8 +149,7 @@ def get_client(config):
             base, auth['username'], auth['password'])
 
     if auth.get('username') and auth.get('passwordFile'):
-        abspath = os.path.join(config['configDir'], auth['passwordFile'])
-        with open(abspath, 'r') as f:
+        with open(auth['passwordFile'], 'r') as f:
             password = f.read().strip()
         return _get_client_via_password(base, auth['username'], password)
 
