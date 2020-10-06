@@ -1,6 +1,19 @@
 # jenkins-perf-visualizer
 Visualize how your Jenkins builds are spending their time
 
+## Preface
+
+jenkins-perf-visualizer was developed for use by Khan Academy and is
+being released publicly in the hopes it will be useful to others.  It
+is not being actively maintained, and Khan Academy will resolve any
+filed issues on a best-effort basis only.  (Pull requests are more
+likely to be considered.)
+
+Khan Academy is a non-profit organization with a mission to provide a
+free, world-class education to anyone, anywhere.  You can help us in
+that mission by [donating](https://khanacademy.org/donate) or looking
+at [career opportunities](https://khanacademy.org/careers).
+
 ## Overview
 
 This project provides various tools for analyzing and visualizing what
