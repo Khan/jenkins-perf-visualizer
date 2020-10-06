@@ -4,6 +4,7 @@ load() is the public API, though scripts will use add_*_arg() as well.
 """
 import argparse
 import json
+import os
 import re
 
 # These are the argparse arguments that a script can include to
@@ -79,8 +80,9 @@ def load(args):
     """
     if hasattr(args, 'config'):
         config = _read(args.config)
+        config['configDir'] = os.path.dirname(os.path.abspath(args.config))
     else:
-        config = {}
+        config = {'configDir': os.path.dirname(os.path.abspath(__file__))}
 
     if hasattr(args, 'jenkins_base'):
         config['jenkinsBase'] = args.jenkins_base

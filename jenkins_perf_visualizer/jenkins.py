@@ -148,8 +148,13 @@ def get_client(config):
         return _get_client_via_password(
             base, auth['username'], auth['password'])
 
+    if auth.get('username') and auth.get('passwordFile'):
+        abspath = os.path.join(config['configDir'], auth['passwordFile'])
+        with open(abspath, 'r') as f:
+            password = f.read().strip()
+        return _get_client_via_password(base, auth['username'], password)
+
     if auth.get('keeperRecordId'):
-        return _get_client_via_keeper(
-            base, auth['keeperRecordId'])
+        return _get_client_via_keeper(base, auth['keeperRecordId'])
 
     raise ValueError("No method specified to connect to jenkins.")

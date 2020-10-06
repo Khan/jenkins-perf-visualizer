@@ -15,7 +15,12 @@
         //"username": "jenkins@khanacademy.org",
         //"password": "1234",
 
-        // Option 2: Specify a Keeper Security record-id that holds
+        // Option 2: Specify username and password-file in plaintext.
+        //           The path is relative to the location of config.json.
+        //"username": "jenkins@khanacademy.org",
+        //"passwordFile": "jenkins_api.token",
+
+        // Option 3: Specify a Keeper Security record-id that holds
         //           the username and API token.
         "keeperRecordId": "mHbUyJXAmnZyqLY3pMUmjQ"
     },
