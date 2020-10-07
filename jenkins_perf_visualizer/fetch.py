@@ -9,6 +9,7 @@ TODO(csilvers): save two data files, the raw datafile and the json.
 """
 import errno
 import json
+import logging
 import os
 import re
 
@@ -72,6 +73,7 @@ def fetch_build(job, build_id, output_dir, jenkins_client, force=False):
         (step_html, build_params, build_start_time) = fetch_from_datafile(
             outfile)
     else:
+        logging.info("Fetching %s:%s", job, build_id)
         (step_html, build_params, build_start_time) = _fetch_from_jenkins(
             job, build_id, jenkins_client)
 

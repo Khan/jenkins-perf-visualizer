@@ -49,8 +49,8 @@ This script works in three main stages:
 3) It constructs and emits a graph based on the node data.
    (`create_html()`.)
 """
-from __future__ import absolute_import
-
+import argparse
+import logging
 import os
 import webbrowser
 
@@ -96,7 +96,8 @@ def main(config, buildses, html_file):
 
 
 if __name__ == '__main__':
-    import argparse
+    logging.basicConfig(format="[%(asctime)s %(levelname)s] %(message)s")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'build', nargs='+',
@@ -106,12 +107,19 @@ if __name__ == '__main__':
         '-o', '--output-filename',
         help=("The name to use for the output .html file.  Defaults to "
               "a name based on the first input build."))
+
     # Lets you specify a config file to control everything else.
     configuration.add_config_arg(parser)
     # Lets you override the values in the config file on a per-run basis.
     configuration.add_datadir_arg(parser)
 
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help=('Log more data when running.'))
+
     args = parser.parse_args()
     config = configuration.load(args)
+
+    logging.getLogger().setLevel(
+        logging.DEBUG if args.verbose else logging.INFO)
 
     main(config, args.build, args.output_filename)

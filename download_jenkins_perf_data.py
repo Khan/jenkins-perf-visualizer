@@ -13,6 +13,7 @@ TODO(csilvers): also provide the ability to expire old data, perhaps having a
 max-directory-size.
 """
 import argparse
+import logging
 import os
 import time
 
@@ -24,12 +25,11 @@ from jenkins_perf_visualizer import jenkins
 def _download_one_build(param):
     # (The weird parameter format is because this is used by Pool().)
     (job, build_id, output_dir, jenkins_client, grouping_param, force) = param
-    print("Fetching %s:%s" % (job, build_id))
     try:
         (_, build_params, build_start_time, outfile) = fetch.fetch_build(
             job, build_id, output_dir, jenkins_client, force)
     except fetch.DataError as e:
-        print("ERROR: skipping %s:%s: %s" % (e.job, e.build_id, e))
+        logging.error("Skipping %s:%s: %s", e.job, e.build_id, e)
         return
 
     # Now create a symlink farm grouping together jobs with the same
@@ -100,6 +100,8 @@ def download_builds(config, builds, force=False):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format="[%(asctime)s %(levelname)s] %(message)s")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'build_or_job', nargs='+',
@@ -115,8 +117,13 @@ if __name__ == '__main__':
     parser.add_argument('--force', action='store_true',
                         help=('If set, re-fetch data files even if they '
                               'already exist in output-dir.'))
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help=('Log more data when running.'))
 
     args = parser.parse_args()
     config = configuration.load(args)
+
+    logging.getLogger().setLevel(
+        logging.DEBUG if args.verbose else logging.INFO)
 
     download_builds(config, args.build_or_job, args.force)
