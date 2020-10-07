@@ -63,7 +63,7 @@ from jenkins_perf_visualizer import nodes
 from jenkins_perf_visualizer import steps
 
 
-def main(config, buildses):
+def main(config, buildses, html_file):
     """jenkins_* vars are not needed if all builds are .data files."""
     build_datas = []
     for build in buildses:
@@ -87,7 +87,8 @@ def main(config, buildses):
 
     build_datas.sort(key=lambda jd: jd.build_start_time_ms)
 
-    html_file = outfile.replace('.data', '.html')
+    if not html_file:  # they didn't specify on the commandline
+        html_file = outfile.replace('.data', '.html')
     output_html = html.create_html(config, build_datas)
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
@@ -101,6 +102,10 @@ if __name__ == '__main__':
         'build', nargs='+',
         help=("Jenkins builds to fetch, e.g. deploy/build-webapp:1543 "
               "OR a data-filename like deploy-build-webapp:1543.data."))
+    parser.add_argument(
+        '-o', '--output-filename',
+        help=("The name to use for the output .html file.  Defaults to "
+              "a name based on the first input build."))
     # Lets you specify a config file to control everything else.
     configuration.add_config_arg(parser)
     # Lets you override the values in the config file on a per-run basis.
@@ -109,4 +114,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config = configuration.load(args)
 
-    main(config, args.build)
+    main(config, args.build, args.output_filename)
