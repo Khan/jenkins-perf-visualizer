@@ -77,7 +77,14 @@ function addCssColors(colorToId) {
 }
 
 
-// TODO(csilvers): document what's in `data`
+// `data` has these fields:
+//    title: the title of this graph.
+//    subtitle: the subtitle of this graph (usually the timerange).
+//    colorToId: a map from RRGGBB color-tuple to a unique id.
+//        `builds`, below, refers to color using these unique id's.
+//    taskStartTimeMs: when this graph started, as a time_t but in millisecs.
+//    taskEndTimeMs: when this graph ended, as a time_t but in millisecs.
+//    builds: a list of node-trees, one for each jenkins build in the graph.
 function renderChart(data) {
     var taskTimeMs = data.taskEndTimeMs - data.taskStartTimeMs;
 
@@ -182,5 +189,6 @@ function renderChart(data) {
 
     // Finally insert the html into the page!
     document.getElementById('title').innerHTML = safe(data.title);
+    document.getElementById('subtitle').innerHTML = safe(data.subtitle);
     document.getElementById('perfchart').innerHTML = html.join("\n");
 }

@@ -6,7 +6,7 @@ import time
 from jenkins_perf_visualizer import colors
 
 
-def create_html(config, build_datas):
+def create_html(config, build_datas, title=None):
     """Return an html page that will render our flame-like chart.
 
     We use custom CSS to do this.
@@ -16,13 +16,14 @@ def create_html(config, build_datas):
     # several jenkins builds run in concert.
     task_start_time_ms = min(j.data['buildStartTimeMs'] for j in build_datas)
     task_end_time_ms = max(j.data['buildEndTimeMs'] for j in build_datas)
-    title = ('%s (%s)'
-             % (' + '.join(sorted(set(j.data['title'] for j in build_datas))),
-                time.strftime("%Y/%m/%d %H:%M:%S",
-                              time.localtime(task_start_time_ms / 1000))))
+    if not title:
+        title = ' / '.join(sorted(set(j.data['title'] for j in build_datas)))
+    subtitle = time.strftime("%Y/%m/%d %H:%M:%S",
+                             time.localtime(task_start_time_ms / 1000))
     task_data = {
         'builds': [j.data for j in build_datas],
         'title': title,
+        'subtitle': subtitle,
         'colorToId': colors.color_to_id(config),
         'taskStartTimeMs': task_start_time_ms,
         'taskEndTimeMs': task_end_time_ms,
@@ -36,7 +37,8 @@ def create_html(config, build_datas):
     with open(os.path.join(visualizer_dir, 'visualize.css')) as f:
         css = f.read()
 
-    return template \
-        .replace('{{js}}', js) \
-        .replace('{{css}}', css) \
-        .replace('{{data}}', json.dumps(task_data, sort_keys=True, indent=2))
+    return (template
+                .replace('{{js}}', js)
+                .replace('{{css}}', css)
+                .replace('{{data}}', json.dumps(task_data,
+                                                sort_keys=True, indent=2)))

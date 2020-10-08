@@ -1,8 +1,13 @@
 /* The title of the page. */
-h1 {
-    width: 100%;
-    text-align: center;
+h1, h2, h3, h4 {
     color: #505050;
+    margin-top: 0;
+}
+h1 {
+    float: left;
+}
+h2, h3, h4 {
+    float: right;
 }
 
 /* The main container of the chart. */

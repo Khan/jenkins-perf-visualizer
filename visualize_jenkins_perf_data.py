@@ -63,7 +63,7 @@ from jenkins_perf_visualizer import nodes
 from jenkins_perf_visualizer import steps
 
 
-def main(config, buildses, html_file):
+def main(config, buildses, title, html_file):
     """jenkins_* vars are not needed if all builds are .data files."""
     build_datas = []
     for build in buildses:
@@ -89,7 +89,7 @@ def main(config, buildses, html_file):
 
     if not html_file:  # they didn't specify on the commandline
         html_file = outfile.replace('.data', '.html')
-    output_html = html.create_html(config, build_datas)
+    output_html = html.create_html(config, build_datas, title)
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
 
@@ -109,6 +109,10 @@ if __name__ == '__main__':
         '-o', '--output-filename',
         help=("The name to use for the output .html file.  Defaults to "
               "a name based on the first input build."))
+    parser.add_argument(
+        '-t', '--title',
+        help=("The title to use for the html graph, overriding the rule "
+              "for automatically generating the title in config.json."))
 
     # Lets you specify a config file to control everything else.
     configuration.add_config_arg(parser)
@@ -125,4 +129,4 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(
         logging.DEBUG if args.verbose else logging.INFO)
 
-    main(config, args.build, args.output_filename)
+    main(config, args.build, args.title, args.output_filename)
