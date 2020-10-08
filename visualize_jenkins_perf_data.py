@@ -92,7 +92,9 @@ def main(config, buildses, html_file):
     output_html = html.create_html(config, build_datas)
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
-    webbrowser.open(html_file)
+
+    if config['openWebpageInBrowser']:
+        webbrowser.open(html_file)
 
 
 if __name__ == '__main__':
@@ -112,6 +114,7 @@ if __name__ == '__main__':
     configuration.add_config_arg(parser)
     # Lets you override the values in the config file on a per-run basis.
     configuration.add_datadir_arg(parser)
+    configuration.add_no_open_webpage_in_browser_arg(parser)
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help=('Log more data when running.'))

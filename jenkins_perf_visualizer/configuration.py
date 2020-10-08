@@ -32,6 +32,13 @@ def add_download_threads_arg(parser):
         help=("How many threads to use when downloading, overriding the "
               "value in the config.json file"))
 
+def add_no_open_webpage_in_browser_arg(parser):
+    parser.add_argument(
+        '--no-open-webpage-in-browser', '-b', action='store_true',
+        default=argparse.SUPPRESS,
+        help=("If set, do not attempt to auto-open an .html page after "
+              "creating it, overriding the value in the config.json file"))
+
 # TODO(csilvers): flesh these out.
 
 
@@ -124,6 +131,8 @@ def load(args):
         config['datadir'] = args.datadir
     if hasattr(args, 'download_threads'):
         config['downloadThreads'] = args.download_threads
+    if hasattr(args, 'no_open_webpage_in_browser'):
+        config['openWebpageInBrowser'] = not args.no_open_webpage_in_browser
 
     config = _normalize_and_validate(config, config_dir)
 

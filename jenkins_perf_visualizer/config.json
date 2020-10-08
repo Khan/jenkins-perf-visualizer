@@ -121,5 +121,9 @@
 
     // When downloading build data in bulk, how many threads to use.
     // Set to 1 to disable threading.
-    "downloadThreads": 7
+    "downloadThreads": 7,
+
+    // When creating a .html file, should we automatically load
+    // that html file up in your web browser?
+    "openWebpageInBrowser": true
 }
