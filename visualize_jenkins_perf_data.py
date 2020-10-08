@@ -93,7 +93,7 @@ def main(config, buildses, html_file):
     with open(html_file, 'wb') as f:
         f.write(output_html.encode('utf-8'))
 
-    if config['openWebpageInBrowser']:
+    if config.get('openWebpageInBrowser', True):
         webbrowser.open(html_file)
 
 
