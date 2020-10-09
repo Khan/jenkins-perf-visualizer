@@ -104,11 +104,14 @@ class JenkinsFetcher(object):
         return {e["name"]: e["value"] for e in params.get('parameters', {})}
 
     def fetch_all_build_ids(self, job_name):
-        """Fetch all the build-ids jenkins has for a given job."""
+        """Fetch all the build-ids jenkins has for a given job.
+
+        This only returns *completed* builds, not ones currently in progress.
+        """
         s = self.fetch_for_build(
-            job_name, None, 'api/json?tree=allBuilds[number]')
+            job_name, None, 'api/json?tree=allBuilds[number,building]')
         data = json.loads(s)
-        return [b['number'] for b in data['allBuilds']]
+        return [b['number'] for b in data['allBuilds'] if not b['building']]
 
 
 def _get_client_via_password(base, username, password):
