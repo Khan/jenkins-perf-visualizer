@@ -12,6 +12,24 @@ The public API here is parse_pipeline_steps().
 """
 import re
 
+# These substrings/regexps are taken from the html of a pipeline-steps
+# Jenkins page, e.g.
+#   view-source:https://jenkins.khanacademy.org/job/deploy/job/webapp-test/lastSuccessfulBuild/flowGraphTable/
+_ROW_RE = re.compile(
+    r'<td style="padding-left: calc.var.--table-padding. \* (?P<indent>\d+).">'
+    r'\s*<a tooltip="ID: (?P<id>\d+)" [^>]*>'
+    r'\s*(?P<step_text>[^<]*)'
+    r'\s*</a>'
+    r'\s*</td>'
+)
+_WAIT_UNTIL_TEXT = "waitUntil - "   # pipeline text for waitUntil()
+_PROMPT_TEXT = "input - "           # pipeline text for prompt()
+_SLEEP_TEXT = "sleep - "            # pipeline text for sleep()
+_NODE_TEXT = "node - "              # pipeline text for node()
+_PARALLEL_TEXT = "parallel - "      # pipeline text for parallel()
+_BRANCH_RE = re.compile(r'\(Branch: ([^)]*)\)')     # text within parallel()
+_STAGE_RE = re.compile(r'stage block \(([^)]*)\)')  # text for stage()
+
 
 def _html_unescape(s):
     """Unescape step_text, lamely.  TODO(csilvers): use a real parser."""
@@ -28,7 +46,7 @@ class Step(object):
         """Populates all the fields we can from a given 'step' html.
 
         "step_text" is the stuff between the <a> and </a> in this:
-           <td tooltip="ID: 4" style="padding-left: 25px">\n<a href="/job/deploy/job/e2e-test/16585/execution/node/4/">\nAllocate node : Start - (16 min in block)</a>\n</td>\n  # NoQA:L501
+           <a tooltip="ID: 4" href="/job/deploy/job/e2e-test/16585/execution/node/4/">Start of Pipeline - (16 min in block)</a>  # NoQA:L501
         """
         # An integer id for the node, given by jenkins.
         self.id = int(id)
@@ -43,18 +61,18 @@ class Step(object):
             self.parent.children.append(self)
 
         # True if we are a waitUntil(), prompt(), or sleep().
-        self.is_waiting = ('Wait for condition : ' in step_text or
-                           'Wait for interactive input' in step_text)
-        self.is_sleeping = 'Sleep - ' in step_text
+        self.is_waiting = (_WAIT_UNTIL_TEXT in step_text or
+                           _PROMPT_TEXT in step_text)
+        self.is_sleeping = _SLEEP_TEXT in step_text
 
         # True if we are allocating a new node (on a jenkins worker, say).
-        self.is_new_worker = 'Allocate node : Start' in step_text
+        self.is_new_worker = _NODE_TEXT in step_text
         # True if we start a new stage (via the stage() pipeline command).
-        self.is_new_stage = 'Stage : Start' in step_text
+        self.is_new_stage = bool(_STAGE_RE.search(step_text))
         # True if our children are executed in parallel.
-        self.is_parallel_parent = 'Execute in parallel :' in step_text
+        self.is_parallel_parent = _PARALLEL_TEXT in step_text
         # True if we are starting a new branch inside a parallel().
-        self.is_branch_step = 'Branch: ' in step_text
+        self.is_branch_step = bool(_BRANCH_RE.search(step_text))
 
         # The node name, e.g. 'determine-splits'.
         # If we don't have one, we inherit from our parent.
@@ -71,7 +89,6 @@ class Step(object):
         self.start_time_ms = self._start_time()
 
     INDENT_RE = re.compile(r'\bpadding-left:\s*([\d]+)', re.I)
-    BRANCH_RE = re.compile(r'\bBranch: (\S+) - ')
     ELAPSED_TIME_RE = re.compile(
         r'(?:([\d.]+) min )?'
         r'(?:([\d.]+) sec )?'
@@ -100,10 +117,11 @@ class Step(object):
         # 2. We are starting a new stage (via a stage() step)
         # Otherwise, we inherit the name from our parent.
         if self.is_branch_step:
-            m = self.BRANCH_RE.search(step_text)
+            m = _BRANCH_RE.search(step_text)
             return m.group(1)
-        elif self.parent and self.parent.is_new_stage:
-            return step_text.split(' - ')[0]  # our text is the stage-name
+        elif self.is_new_stage:
+            m = _STAGE_RE.search(step_text)
+            return m.group(1)
         elif self.parent:
             return self.parent.name
         else:
@@ -150,18 +168,10 @@ class Step(object):
 
 def parse_pipeline_steps(html):
     """Parse the pipeline-steps html page to get an actual execution tree."""
-    # The html here has a very regular structure.  Steps look like:
-    #   <td tooltip="ID: XX" style="padding-left: YYpx"><a href=...>ZZ</a></td>
-    rows = re.findall(
-        (r'<td tooltip="ID: (\d+)" style="padding-left: (\d+)px">'
-         r'<a href=[^>]*>([^<]*)</a></td>'),
-        html
-    )
-
     steps = []
-    for (id, indentation, step_text) in rows:
-        step_text = _html_unescape(step_text.strip())
-        step = Step(id, indentation, step_text, steps)
+    for m in _ROW_RE.finditer(html):
+        step_text = _html_unescape(m.group('step_text').strip())
+        step = Step(m.group('id'), m.group('indent'), step_text, steps)
         steps.append(step)
 
     # Now patch over the elapsed-time bug for "Branch:" nodes.
