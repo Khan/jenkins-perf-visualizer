@@ -32,6 +32,7 @@ def add_download_threads_arg(parser):
         help=("How many threads to use when downloading, overriding the "
               "value in the config.json file"))
 
+
 def add_no_open_webpage_in_browser_arg(parser):
     parser.add_argument(
         '--no-open-webpage-in-browser', '-b', action='store_true',
@@ -111,8 +112,8 @@ def load(args):
             "username": args.jenkins_username,
             "passwordFile": args.jenkins_password_file,
         }
-    if hasattr(args, 'keeper_record_id'):
-        config['jenkinsAuth'] = {"keeperRecordId": args.keeper_record_id}
+    if hasattr(args, 'gsm_record_id'):
+        config['jenkinsAuth'] = {"gsmRecordId": args.gsm_record_id}
 
     if hasattr(args, 'grouping_parameter'):
         config['groupingParameter'] = args.grouping_parameter
