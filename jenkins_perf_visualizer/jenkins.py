@@ -119,26 +119,26 @@ def _get_client_via_password(base, username, password):
     return JenkinsFetcher(base, username, password)
 
 
-def _get_client_via_keeper(base, keeper_record_id):
-    """Create a JenkinsFetcher, getting username/password from Keeper Security.
+def _get_client_via_gsm(base, secret_name):
+    """Create a JenkinsFetcher, getting username/password from GSM.
 
-    This requires you to have the keepercommander CLI tool installed:
-        https://github.com/Keeper-Security/Commander
-    The record-id should have the jenkins username in the "login"
-    field and the api token in the "password" field.
-
-    Your keeper configuration file, allowing non-interactive use
-    of the keepercommander tool, must live in ~/.keeper-config.json.
+    GSM stands for "Google Security Manager".  This requires you to
+    have gcloud IAM permissions on the relevant secrets.
+    The record should have the jenkins username in the "login"
+    annotation and the api token in the "password" field.
     """
-    text = subprocess.check_output([
-        'keeper',
-        '--config=%s/.keeper-config.json' % os.getenv("HOME"),
+    login_text = subprocess.check_output([
+        'gcloud', '--project=khan-academy', 'secrets', 'describe',
+        secret_name,
         '--format=json',
-        'g',
-        keeper_record_id,
     ])
-    record = json.loads(text)
-    return JenkinsFetcher(base, record['login'], record['password'])
+    login = json.loads(login_text)['annotations']['login']
+
+    password = subprocess.check_output([
+        'gcloud', '--project=khan-academy', 'secrets', 'versions', 'access',
+        'latest', '--secret', secret_name,
+    ])
+    return JenkinsFetcher(base, login, password)
 
 
 def get_client(config):
@@ -156,7 +156,7 @@ def get_client(config):
             password = f.read().strip()
         return _get_client_via_password(base, auth['username'], password)
 
-    if auth.get('keeperRecordId'):
-        return _get_client_via_keeper(base, auth['keeperRecordId'])
+    if auth.get('gsmRecordId'):
+        return _get_client_via_gsm(base, auth['gsmRecordId'])
 
     raise ValueError("No method specified to connect to jenkins.")

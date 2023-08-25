@@ -20,9 +20,9 @@
         //"username": "jenkins@khanacademy.org",
         //"passwordFile": "jenkins_api.token",
 
-        // Option 3: Specify a Keeper Security record-id that holds
-        //           the username and API token.
-        "keeperRecordId": "mHbUyJXAmnZyqLY3pMUmjQ"
+        // Option 3: Specify a GSM secret-name that holds the username
+        //           and API token.
+        "gsmRecordId": "jenkins_khanacademy_org_API_token_for_deploy_flamechart"
     },
 
     // -- OPTIONS RELATED TO GRAPH DATA.
