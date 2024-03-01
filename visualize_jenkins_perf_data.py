@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 """Emit a chart that shows where time is spent during specified jenkins builds.
 
